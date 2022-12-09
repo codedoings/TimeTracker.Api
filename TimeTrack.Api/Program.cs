@@ -10,10 +10,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-//var authConf = new AuthOptions();
-builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(nameof(AuthOptions)));
-//builder.Configuration.GetSection(nameof(AuthOptions)).Bind(authConf);
 
+builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(nameof(AuthOptions)));
 
 builder.Services.AddAuthorization();
 builder.Services.AddAuthentication("Bearer").AddJwtBearer();
