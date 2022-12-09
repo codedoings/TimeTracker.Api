@@ -1,4 +1,6 @@
-using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using TimeTrack.Api.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,11 +12,25 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+var authOptions = new AuthOptions();
+var authOptionsSection = builder.Configuration.GetRequiredSection(nameof(AuthOptions));
+authOptionsSection.Bind(authOptions);
+if(authOptions == null) throw new ArgumentNullException(nameof(authOptions));
+builder.Services.Configure<AuthOptions>(authOptionsSection);
 
-builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(nameof(AuthOptions)));
 
 builder.Services.AddAuthorization();
-builder.Services.AddAuthentication("Bearer").AddJwtBearer();
+builder.Services.AddAuthentication("Bearer").AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters()
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidAudience = authOptions.JwtAudience,
+        ValidIssuer = authOptions.JwtIssuer,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authOptions.Secret))
+    };
+});
 
 builder.Services.AddCors(options =>
 {

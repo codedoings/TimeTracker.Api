@@ -55,7 +55,9 @@ namespace TimeTrack.Api.Controllers
             {
                 Subject = new System.Security.Claims.ClaimsIdentity(new[] { new Claim("id", user.Username) }),
                 Expires = DateTime.UtcNow.AddDays(1),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha512Signature)
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha512Signature),
+                Audience = "TimeTrackerWeb",
+                Issuer = "TimeTrackerWebApiTokenIssuer"
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
