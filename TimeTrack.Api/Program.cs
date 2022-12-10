@@ -15,22 +15,34 @@ builder.Services.AddSwaggerGen();
 var authOptions = new AuthOptions();
 var authOptionsSection = builder.Configuration.GetRequiredSection(nameof(AuthOptions));
 authOptionsSection.Bind(authOptions);
-if(authOptions == null) throw new ArgumentNullException(nameof(authOptions));
+if (authOptions == null) throw new ArgumentNullException(nameof(authOptions));
 builder.Services.Configure<AuthOptions>(authOptionsSection);
 
-
 builder.Services.AddAuthorization();
-builder.Services.AddAuthentication("Bearer").AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters()
+builder.Services.AddAuthentication("Bearer")
+    .AddCookie(x =>
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidAudience = authOptions.JwtAudience,
-        ValidIssuer = authOptions.JwtIssuer,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authOptions.Secret))
-    };
-});
+        x.Cookie.Name = "token";
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters()
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidAudience = authOptions.JwtAudience,
+            ValidIssuer = authOptions.JwtIssuer,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authOptions.Secret))
+        };
+        options.Events = new JwtBearerEvents()
+        {
+            OnMessageReceived = context =>
+            {
+                context.Token = context.Request.Cookies["token"];
+                return Task.CompletedTask;
+            }
+        };
+    });
 
 builder.Services.AddCors(options =>
 {

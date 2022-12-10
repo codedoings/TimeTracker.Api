@@ -43,10 +43,12 @@ namespace TimeTrack.Api.Controllers
                 };
                 UserList.Add(user);
             }
-            return Ok(JWTGenerator(user));
+
+            SetCookie(user);
+            return Ok();
         }
 
-        private dynamic JWTGenerator(User user)
+        private void SetCookie(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_authOptions.Secret);
@@ -61,9 +63,17 @@ namespace TimeTrack.Api.Controllers
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
-            var serializedToken = tokenHandler.WriteToken(token);
+            var signedJws = tokenHandler.WriteToken(token);
 
-            return new { token = serializedToken, username = user.Username };
+            HttpContext.Response.Cookies.Append("token", signedJws,
+                new CookieOptions()
+                {
+                    Expires = DateTime.Now.AddDays(1),
+                    HttpOnly = true,
+                    Secure = true,
+                    IsEssential = true,
+                    SameSite = SameSiteMode.None
+                });
         }
     }
 }
