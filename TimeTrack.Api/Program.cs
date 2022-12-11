@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using System.Security.Cryptography;
 using TimeTrack.Api.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,13 +26,19 @@ builder.Services.AddAuthentication("Bearer")
     })
     .AddJwtBearer(options =>
     {
+        var rsa = RSA.Create();
+        rsa.ImportFromPem(authOptions.PublicKey);
+        var signingCredentials = new RsaSecurityKey(rsa);
+
         options.TokenValidationParameters = new TokenValidationParameters()
         {
             ValidateIssuer = true,
             ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
             ValidAudience = authOptions.JwtAudience,
             ValidIssuer = authOptions.JwtIssuer,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authOptions.Secret))
+            IssuerSigningKey =  signingCredentials
         };
         options.Events = new JwtBearerEvents()
         {

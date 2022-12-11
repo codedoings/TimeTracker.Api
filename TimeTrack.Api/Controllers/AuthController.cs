@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
+using System.Security.Cryptography;
 using TimeTrack.Api.Features.Auth.Entities;
 using TimeTrack.Api.Options;
 
@@ -16,10 +16,13 @@ namespace TimeTrack.Api.Controllers
     {
         private static List<User> UserList = new List<User>();
         private readonly AuthOptions _authOptions;
+        private readonly RSA _rsa;
 
         public AuthController(IOptions<AuthOptions> authOptions)
         {
             _authOptions = authOptions.Value;
+            _rsa = RSA.Create();
+            _rsa.ImportFromPem(_authOptions.PrivateKey);
         }
 
         [AllowAnonymous]
@@ -32,14 +35,19 @@ namespace TimeTrack.Api.Controllers
             };
 
             var payload = await GoogleJsonWebSignature.ValidateAsync(credential, settings);
+            if (!payload.EmailVerified)
+            {
+                return BadRequest("User email is not verified");
+            }
 
-            var user = UserList.Where(x => x.Username == payload.Name).FirstOrDefault();
+            var user = UserList.Where(x => x.Email == payload.Email).FirstOrDefault();
 
             if (user == null)
             {
                 user = new User
                 {
-                    Username = payload.Name
+                    Email = payload.Email,
+                    Name = payload.Name
                 };
                 UserList.Add(user);
             }
@@ -51,13 +59,14 @@ namespace TimeTrack.Api.Controllers
         private void SetCookie(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_authOptions.Secret);
-
+            
             var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new System.Security.Claims.ClaimsIdentity(new[] { new Claim("id", user.Username) }),
+                Subject = new ClaimsIdentity(new[] { 
+                    new Claim("email", user.Email),
+                    new Claim("name", user.Name)}),
                 Expires = DateTime.UtcNow.AddDays(1),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha512Signature),
+                SigningCredentials = new SigningCredentials(key: new RsaSecurityKey(_rsa), algorithm: SecurityAlgorithms.RsaSha256),
                 Audience = "TimeTrackerWeb",
                 Issuer = "TimeTrackerWebApiTokenIssuer"
             };
