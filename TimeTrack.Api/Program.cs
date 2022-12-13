@@ -8,18 +8,54 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-var authOptions = new AuthOptions();
-var authOptionsSection = builder.Configuration.GetRequiredSection(nameof(AuthOptions));
-authOptionsSection.Bind(authOptions);
-if (authOptions == null) throw new ArgumentNullException(nameof(authOptions));
-builder.Services.Configure<AuthOptions>(authOptionsSection);
-
+var authOptions = ConfigureAuthOptions();
 builder.Services.AddAuthorization();
-builder.Services.AddAuthentication("Bearer")
+ConfigureAuthentication(authOptions);
+
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: "CorsPolicy", builder =>
+    {
+        builder.WithOrigins("http://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    app.UseCors("CorsPolicy"); //Do not enable this policy outside development unless you remove localhost as a trusted origin
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
+
+AuthOptions ConfigureAuthOptions()
+{
+    var authOptions = new AuthOptions();
+    var authOptionsSection = builder.Configuration.GetRequiredSection(nameof(AuthOptions));
+    authOptionsSection.Bind(authOptions);
+    if (authOptions == null) throw new ArgumentNullException(nameof(authOptions));
+    builder.Services.Configure<AuthOptions>(authOptionsSection);
+    return authOptions;
+}
+
+void ConfigureAuthentication(AuthOptions authOptions)
+{
+    builder.Services.AddAuthentication("Bearer")
     .AddCookie(x =>
     {
         x.Cookie.Name = "token";
@@ -38,7 +74,7 @@ builder.Services.AddAuthentication("Bearer")
             ValidateIssuerSigningKey = true,
             ValidAudience = authOptions.JwtAudience,
             ValidIssuer = authOptions.JwtIssuer,
-            IssuerSigningKey =  signingCredentials
+            IssuerSigningKey = signingCredentials
         };
         options.Events = new JwtBearerEvents()
         {
@@ -49,35 +85,4 @@ builder.Services.AddAuthentication("Bearer")
             }
         };
     });
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(name: "CorsPolicy", builder =>
-    {
-        builder.WithOrigins("http://localhost:4200")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
-
-var app = builder.Build();
-
-app.UseAuthorization();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
 }
-
-//app.UseCors();
-
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
-
-app.Run();
