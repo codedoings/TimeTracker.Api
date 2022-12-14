@@ -48,7 +48,6 @@ AuthOptions ConfigureAuthOptions()
     var authOptions = new AuthOptions();
     var authOptionsSection = builder.Configuration.GetRequiredSection(nameof(AuthOptions));
     authOptionsSection.Bind(authOptions);
-    if (authOptions == null) throw new ArgumentNullException(nameof(authOptions));
     builder.Services.Configure<AuthOptions>(authOptionsSection);
     return authOptions;
 }
