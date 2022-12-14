@@ -13,6 +13,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var authOptions = ConfigureAuthOptions();
+var corsOptions = ConfigureCorsOptions();
 builder.Services.AddAuthorization();
 ConfigureAuthentication(authOptions);
 
@@ -21,7 +22,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(name: "CorsPolicy", builder =>
     {
-        builder.WithOrigins("http://localhost:4200")
+        builder.WithOrigins(corsOptions.AllowedOrigins.ToArray())
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -35,9 +36,9 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-    app.UseCors("CorsPolicy"); //Do not enable this policy outside development unless you remove localhost as a trusted origin
 }
 
+app.UseCors("CorsPolicy");
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
@@ -50,6 +51,15 @@ AuthOptions ConfigureAuthOptions()
     authOptionsSection.Bind(authOptions);
     builder.Services.Configure<AuthOptions>(authOptionsSection);
     return authOptions;
+}
+
+CorsOptions ConfigureCorsOptions()
+{
+    var corsOptions = new CorsOptions();
+    var section = builder.Configuration.GetRequiredSection(nameof(CorsOptions));
+    section.Bind(corsOptions);
+    builder.Services.Configure<CorsOptions>(section);
+    return corsOptions;
 }
 
 void ConfigureAuthentication(AuthOptions authOptions)
